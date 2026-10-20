@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>abcdefghijklmnopqrstuvwxyz | zyxwvutsrqponmlkjihgfedcba</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AA%9E%3C/text%3E%3C/svg%3E">
+<meta name="description" content="abcdefghijklmnopqrstuvwxyz.llc and its mirror, side by side, in step.">
+<style>
+  /* The pair (user, 2026-10-19): the live site on the left, the same site flipped on the right, kept in step. Each
+     click on one side happens on the other too; scrolling, the pointer and every page move across. The work is
+     done by mirror.js on the user's own sites, which reads the frames' names; this page only passes messages. */
+  :root { --bg: #fbfaf7; --seam: #d9d6cf; --ghost: rgba(17, 17, 17, .35); }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111; --seam: #333; --ghost: rgba(240, 240, 240, .4); } }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+  iframe { position: fixed; top: 0; bottom: 0; width: 50%; height: 100%; border: 0; background: var(--bg); }
+  #plain { left: 0; }
+  #glass { right: 0; transform: scaleX(-1); border-right: 1px solid var(--seam); }
+  /* a phone held upright: one above the other */
+  @media (max-aspect-ratio: 4/5) {
+    iframe { width: 100%; height: 50%; }
+    #plain { top: 0; bottom: auto; }
+    #glass { top: auto; bottom: 0; border-right: 0; border-bottom: 1px solid var(--seam); }
+  }
+  /* where the pointer is on the other side */
+  #ghost { position: fixed; z-index: 1; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+           background: var(--ghost); pointer-events: none; opacity: 0; transition: opacity .2s; }
+  #ghost.on { opacity: 1; }
+  noscript p { font: 14px/1.5 ui-monospace, Menlo, monospace; padding: 2rem 16px; color: #6b6b6b; }
+</style>
+</head>
+<body>
+<div id="ghost" aria-hidden="true"></div>
+<noscript><p>This needs JavaScript. The site itself is <a href="https://abcdefghijklmnopqrstuvwxyz.llc/">abcdefghijklmnopqrstuvwxyz.llc</a>.</p></noscript>
+<script>
+(() => {
+  "use strict";
+  // A path here is the same path there, and the first part of the path can name one of the user's other sites
+  // (…/badvice/r173/ is badvice.fyi/r173/), as on the mirror.
+  const HOME = "https://abcdefghijklmnopqrstuvwxyz.llc";
+  const SITES = { badvice: "https://badvice.fyi", listslists: "https://listslists.xyz", toomanybios: "https://toomanybios.com" };
+  const ORIGINS = [HOME, ...Object.values(SITES)];
+  const parts = location.pathname.split("/");
+  let base = HOME, path = location.pathname;
+  if (SITES[parts[1]]) { base = SITES[parts[1]]; path = "/" + parts.slice(2).join("/"); }
+  const start = base + path + location.search + location.hash;
+
+  // Both halves get the same seed, so they roll the same random fonts, colors and lines (mirror.js).
+  const seed = Math.floor(Math.random() * 1e9);
+  // A frame takes its name when it's put in the page, so each is made with its name already on it.
+  const frame = (id, title) => {
+    const f = document.createElement("iframe");
+    f.id = id;
+    f.title = title;
+    f.name = "mirror-" + id + ":" + seed;
+    f.src = start;
+    document.body.prepend(f);
+    return f;
+  };
+  const glass = frame("glass", "abcdefghijklmnopqrstuvwxyz.llc, in the mirror");
+  const plain = frame("plain", "abcdefghijklmnopqrstuvwxyz.llc");
+  const ghost = document.getElementById("ghost");
+
+  const at = { plain: null, glass: null };          // the page each side last said it was on
+  const other = f => f === plain ? glass : plain;
+  const key = f => f === plain ? "plain" : "glass";
+
+  // Keep this page's address on whatever page the pair is showing.
+  const show = href => {
+    const u = new URL(href);
+    const site = Object.keys(SITES).find(k => SITES[k] === u.origin);
+    const p = (site ? "/" + site : "") + u.pathname + u.search + u.hash;
+    if (p !== location.pathname + location.search + location.hash) history.replaceState(null, "", p);
+  };
+
+  window.addEventListener("message", e => {
+    const from = [plain, glass].find(f => f.contentWindow === e.source);
+    if (!from || !ORIGINS.includes(e.origin) || !e.data || !e.data.mirror) return;
+    const m = e.data, to = other(from);
+    if (m.k === "here") {
+      at[key(from)] = m.href;
+      show(m.href);
+      if (at[key(to)] !== m.href) to.contentWindow.postMessage({ mirror: 1, k: "go", href: m.href }, "*");
+    } else if (m.k === "point") {
+      if (m.x == null) { ghost.classList.remove("on"); return; }
+      const r = to.getBoundingClientRect();
+      const x = to === glass ? 1 - m.x : m.x;       // the flipped side shows it reflected
+      ghost.style.left = r.left + x * r.width + "px";
+      ghost.style.top = r.top + m.y * r.height + "px";
+      ghost.classList.add("on");
+    } else if (m.k === "click" || m.k === "input" || m.k === "scroll") {
+      to.contentWindow.postMessage(m, "*");
+    }
+  });
+  document.addEventListener("mouseleave", () => ghost.classList.remove("on"));
+})();
+</script>
+</body>
+</html>
